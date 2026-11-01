@@ -177,9 +177,51 @@ test('sync: 2130-day bootstrap range passes validation with --max-days 2500', DB
         try {
             const sync = await commandDef('sync');
             await assert.rejects(
-                sync.func({ since: '2021-01-01', until: '2026-10-31', db, 'max-days': 2500, 'delay-ms': 0 }),
+                sync.func({ since: '2021-01-01', until: '2026-10-31', db, 'max-days': 2500, 'delay-ms': 0, yes: true }),
                 /HTTP 500/);
             assert.equal(stub.calls.length, 2, 'range accepted; aborted on the first 5xx');
+        } finally { stub.restore(); }
+    });
+});
+
+test('sync: bulk range without --yes is refused before the mirror is created', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = installFetch([]);
+        try {
+            const sync = await commandDef('sync');
+            await assert.rejects(sync.func({ since: '2026-01-01', until: '2026-02-01', db }),
+                (err) => err.code === 'ARGUMENT' && /32 days/.test(err.message) && /--yes/.test(err.hint));
+            const exists = await fs.access(db).then(() => true, () => false);
+            assert.equal(exists, false, 'the consent gate must refuse before creating the mirror');
+            assert.equal(stub.calls.length, 0);
+        } finally { stub.restore(); }
+    });
+});
+
+test('sync: 31 days needs no consent flag', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = installFetch([
+            { match: /\/export\/2026-01-\d{2}\.zip$/, body: makeStoredZip('empty.xml', '<?xml version="1.0"?><zmluvy/>') },
+        ]);
+        try {
+            const sync = await commandDef('sync');
+            const res = await sync.func({ since: '2026-01-01', until: '2026-01-31', db, 'delay-ms': 0 });
+            assert.equal(res.days, 31);
+            assert.equal(stub.calls.length, 31);
+        } finally { stub.restore(); }
+    });
+});
+
+test('sync: resuming across a month needs --yes as well', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = installFetch([
+            { match: /\/export\/2026-01-02\.zip$/, body: makeStoredZip('2026-01-02.xml', DAY1_XML) },
+        ]);
+        try {
+            const sync = await commandDef('sync');
+            await sync.func({ since: '2026-01-02', until: '2026-01-02', db });
+            await assert.rejects(sync.func({ until: '2026-03-01', db }),
+                (err) => err.code === 'ARGUMENT' && /58 days/.test(err.message) && /--yes/.test(err.hint));
         } finally { stub.restore(); }
     });
 });

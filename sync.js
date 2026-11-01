@@ -29,6 +29,16 @@ function assertRange(since, until, maxDays) {
     return days;
 }
 
+// Measured 2026-11-01: 365 days produced a 720 MB mirror, so ~2 MB per day.
+const BULK_DAYS = 31;
+
+function assertBulkConsent(days, args) {
+    if (args.yes === true || days.length <= BULK_DAYS) return;
+    throw new ArgumentError(
+        `Bulk mirror run: ${days.length} days, about ${days.length * 2} MB of downloads`,
+        'Re-run with --yes once the user has explicitly agreed to the download. Runs of 31 days or fewer need no flag.');
+}
+
 function addDays(iso, n) {
     const d = new Date(`${iso}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() + n);
@@ -57,6 +67,7 @@ cli({
         { name: 'db', type: 'string', help: `Mirror path (default ${DEFAULT_DB})` },
         { name: 'delay-ms', type: 'int', default: 500, help: 'Politeness delay between daily archives' },
         { name: 'max-days', type: 'int', default: 400, help: 'Safety cap per run (1-2500)' },
+        { name: 'yes', type: 'boolean', default: false, help: 'Confirm a bulk download (required above 31 days)' },
     ],
     columns: ['days', 'events', 'contracts', 'emptyDays', 'gaps', 'watermark'],
     func: async (args) => {
@@ -72,6 +83,7 @@ cli({
         let days = null;
         if (since) {
             days = assertRange(since, until, maxDays);
+            assertBulkConsent(days, args);
         } else if (!fs.existsSync(dbPath)) {
             throw new ArgumentError('First sync needs --since <yyyy-mm-dd>', FIRST_SYNC_HINT);
         }
@@ -83,6 +95,7 @@ cli({
                 if (!wm) throw new ArgumentError('First sync needs --since <yyyy-mm-dd>', FIRST_SYNC_HINT);
                 since = addDays(wm, 1);
                 days = assertRange(since, until, maxDays);
+                assertBulkConsent(days, args);
             }
 
             let events = 0, emptyDays = 0, gaps = 0;

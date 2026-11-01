@@ -18,8 +18,9 @@ opencli crz feed --limit 1 -f json                  # "ok":true → site reachab
 
 1. **Bootstrap the mirror once**, then work locally (exact, fast, gentle on the site):
    ```sh
-   opencli crz sync --since 2025-01-01        # ~0.9 s/day, resumable, prints gaps
+   opencli crz sync --since 2025-01-01        # ~2 s/day, ~2 MB/day, resumable, prints gaps
    ```
+   A range longer than 31 days refuses without `--yes`. Ask the user first, quoting the day count and the rough size, and pass the flag only after they agree.
    Mirror = `~/.opencli/data/crz/mirror.sqlite`. Without it, `entity`/`sql` degrade or refuse (Node ≥ 22.5 required for mirror commands; everything else runs on ≥ 20.18).
 
 2. **Entity questions → `crz entity <IČO>` only.** Never answer "how much/which contracts" from a single `search --supplier-ico` — the register leaves supplier IČOs blank at the source (~33 % of rows), and legal names drift. `entity` unions both directions and tags every row `matchedBy: ico|name`.
