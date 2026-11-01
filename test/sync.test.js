@@ -103,6 +103,10 @@ test('sql: read-only guard, row limit, and unknown db gets a helpful error', DB_
             const sql = await commandDef('sql');
             await assert.rejects(sql.func({ query: 'DELETE FROM contracts', db }), /read-only|SELECT/i);
             await assert.rejects(sql.func({ query: 'UPDATE contracts SET sum_total = 0', db }), /read-only|SELECT/i);
+            // a WITH-prefixed write passes the regex guard — the connection must refuse it
+            await assert.rejects(sql.func({ query: 'WITH x AS (SELECT 1) DELETE FROM contracts', db }), /readonly|read-only/i);
+            const intact = await sql.func({ query: 'SELECT COUNT(*) AS c FROM contracts', db });
+            assert.equal(intact.rows[0].c, 2, 'the bypass must not delete mirror rows');
             const limited = await sql.func({ query: 'SELECT * FROM contracts', db, limit: 1 });
             assert.equal(limited.rows.length, 1);
             assert.equal(limited.truncated, true);
@@ -121,6 +125,80 @@ test('sync: default range with no watermark starts from --since-required hint (t
             const sync = await commandDef('sync');
             await assert.rejects(sync.func({ db, until: '2026-01-05' }), /--since/);
             assert.equal(stub.calls.length, 0);
+        } finally { stub.restore(); }
+    });
+});
+
+test('sync: over-long range is rejected before the mirror file is created', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = installFetch([]);
+        try {
+            const sync = await commandDef('sync');
+            await assert.rejects(sync.func({ since: '2021-01-01', until: '2026-10-31', db }), /max-days/);
+            const exists = await fs.access(db).then(() => true, () => false);
+            assert.equal(exists, false, 'argument errors must not leave an empty mirror');
+            assert.equal(stub.calls.length, 0);
+        } finally { stub.restore(); }
+    });
+});
+
+test('sync: invalid date is rejected before the mirror file is created', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = installFetch([]);
+        try {
+            const sync = await commandDef('sync');
+            await assert.rejects(sync.func({ since: '2026-13-01', until: '2026-12-01', db }), /Invalid since/);
+            const exists = await fs.access(db).then(() => true, () => false);
+            assert.equal(exists, false, 'argument errors must not leave an empty mirror');
+            assert.equal(stub.calls.length, 0);
+        } finally { stub.restore(); }
+    });
+});
+
+test('sync: no --since resumes from the stored watermark', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = twoDayStub();
+        try {
+            const sync = await commandDef('sync');
+            await sync.func({ since: '2026-01-02', until: '2026-01-02', db });
+            const res = await sync.func({ until: '2026-01-04', db });
+            assert.equal(res.days, 2); // watermark + 1 → 01-03, 01-04
+            assert.equal(res.watermark, '2026-01-04');
+        } finally { stub.restore(); }
+    });
+});
+
+test('sync: 2130-day bootstrap range passes validation with --max-days 2500', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = installFetch([
+            { match: /\/export\/2021-01-01\.zip$/, body: makeStoredZip('a.xml', '<?xml version="1.0"?><zmluvy/>') },
+            { match: /\/export\/2021-01-02\.zip$/, status: 500, body: 'maintenance' },
+        ]);
+        try {
+            const sync = await commandDef('sync');
+            await assert.rejects(
+                sync.func({ since: '2021-01-01', until: '2026-10-31', db, 'max-days': 2500, 'delay-ms': 0 }),
+                /HTTP 500/);
+            assert.equal(stub.calls.length, 2, 'range accepted; aborted on the first 5xx');
+        } finally { stub.restore(); }
+    });
+});
+
+test('mirror schema: next-queue indexes exist after sync', DB_TEST_OPTS, async () => {
+    await withDb(async (db) => {
+        const stub = twoDayStub();
+        try {
+            const sync = await commandDef('sync');
+            await sync.func({ since: '2026-01-02', until: '2026-01-02', db });
+            const sql = await commandDef('sql');
+            const idx = await sql.func({ query: "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%' ORDER BY name", db });
+            assert.deepEqual(idx.rows.map((r) => r.name), [
+                'idx_aliases_ico',
+                'idx_contracts_authority_ico',
+                'idx_contracts_closed_at',
+                'idx_contracts_published_at',
+                'idx_contracts_supplier_ico',
+            ]);
         } finally { stub.restore(); }
     });
 });

@@ -69,7 +69,7 @@ try {
 Say 'verifying…'
 $list = opencli list crz 2>$null | Out-String
 $n = ([regex]::Matches($list, '"command":')).Count
-if ($n -lt 12) { Fail "expected >=12 crz commands, found $n" }
+if ($n -lt 16) { Fail "expected >=16 crz commands, found $n" }
 Say "commands registered: $n OK"
 try {
     $feed = opencli crz feed --limit 1 -f json 2>$null | Out-String

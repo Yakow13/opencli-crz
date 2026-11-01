@@ -134,24 +134,34 @@ cli({
         if (!/^\d{5,10}$/.test(ico)) throw new ArgumentError(`Invalid IČO "${ico}"`, 'IČO is a 5-10 digit number.');
         const year = args.year != null ? String(args.year) : null;
         const dbPath = args.db ? String(args.db) : DEFAULT_DB;
-        const useDb = fs.existsSync(dbPath);
-        let rows, extra = {};
-        if (useDb) {
+        let rows = null;
+        let usedDb = false;
+        let extra = {};
+        if (fs.existsSync(dbPath)) {
             const db = await openMirror(dbPath);
-            try { rows = dbEntity(db, ico, year); } finally { db.close(); }
-        } else {
+            try {
+                const ready = db.prepare('SELECT COUNT(*) AS n FROM contracts').get().n > 0;
+                if (ready) {
+                    rows = dbEntity(db, ico, year);
+                    usedDb = true;
+                } else {
+                    extra = { mirrorEmpty: true, hint: 'mirror exists but has no contracts — run `opencli crz sync --since <yyyy-mm-dd>`; using live site legs for now' };
+                }
+            } finally { db.close(); }
+        }
+        if (!usedDb) {
             const site = await siteEntity(args, ico, year);
             rows = site.rows;
-            extra = { nameVariantsUsed: site.nameVariantsUsed, hint: 'mirror absent — site legs union (capped). For exact complete totals: `opencli crz sync --since <yyyy-mm-dd>`' };
+            extra = { ...extra, nameVariantsUsed: site.nameVariantsUsed, hint: extra.hint ?? 'mirror absent — site legs union (capped). For exact complete totals: `opencli crz sync --since <yyyy-mm-dd>`' };
         }
         if (!rows.length) {
             throw new EmptyResultError(`CRZ found no contracts for IČO ${ico}${year ? ` in ${year}` : ''}`,
-                useDb ? 'Verify the IČO; the mirror watermark may not cover the period — crz sync --since …'
+                usedDb ? 'Verify the IČO; the mirror watermark may not cover the period — crz sync --since …'
                       : 'Names drift and source IČOs are blank in ~33% of rows — run `crz sync` and retry with the mirror (exact), or vary the year.');
         }
         return {
             ico,
-            source: useDb ? 'db' : 'site',
+            source: usedDb ? 'db' : 'site',
             contracts: rows.length,
             blankIcoRows: rows.filter((r) => r.matchedBy === 'name').length,
             ...aggregate(rows),

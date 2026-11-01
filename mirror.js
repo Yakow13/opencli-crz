@@ -37,9 +37,14 @@ CREATE TABLE IF NOT EXISTS aliases(
   name_norm TEXT NOT NULL, ico TEXT NOT NULL DEFAULT '', address_norm TEXT NOT NULL DEFAULT '',
   crzid INTEGER NOT NULL, role TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'submitted',
   PRIMARY KEY(name_norm, ico, crzid, role));
+CREATE INDEX IF NOT EXISTS idx_aliases_ico ON aliases(ico);
+CREATE INDEX IF NOT EXISTS idx_contracts_supplier_ico ON contracts(supplier_ico);
+CREATE INDEX IF NOT EXISTS idx_contracts_authority_ico ON contracts(authority_ico);
+CREATE INDEX IF NOT EXISTS idx_contracts_published_at ON contracts(published_at);
+CREATE INDEX IF NOT EXISTS idx_contracts_closed_at ON contracts(closed_at);
 `;
 
-export async function openMirror(dbPath = DEFAULT_DB, { mustExist = false } = {}) {
+export async function openMirror(dbPath = DEFAULT_DB, { mustExist = false, readOnly = false } = {}) {
     // node:sqlite is Node ≥22.5; load lazily so the rest of the suite (and entity
     // site mode) keeps working on older Node — OpenCLI itself supports ≥20.18.
     let DatabaseSync;
@@ -53,10 +58,12 @@ export async function openMirror(dbPath = DEFAULT_DB, { mustExist = false } = {}
         throw Object.assign(new Error(`Mirror database does not exist yet: ${dbPath}`),
             { hint: 'Run `opencli crz sync --since <yyyy-mm-dd>` first.' });
     }
-    fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
-    const db = new DatabaseSync(dbPath);
-    db.exec('PRAGMA journal_mode = WAL;');
-    db.exec(SCHEMA);
+    if (!readOnly) fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
+    const db = new DatabaseSync(dbPath, readOnly ? { readOnly: true } : {});
+    if (!readOnly) {
+        db.exec('PRAGMA journal_mode = WAL;');
+        db.exec(SCHEMA);
+    }
     return db;
 }
 

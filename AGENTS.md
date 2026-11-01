@@ -23,6 +23,7 @@ opencli crz feed --limit 1 -f json                  # "ok":true → site reachab
    Mirror = `~/.opencli/data/crz/mirror.sqlite`. Without it, `entity`/`sql` degrade or refuse (Node ≥ 22.5 required for mirror commands; everything else runs on ≥ 20.18).
 
 2. **Entity questions → `crz entity <IČO>` only.** Never answer "how much/which contracts" from a single `search --supplier-ico` — the register leaves supplier IČOs blank at the source (~33 % of rows), and legal names drift. `entity` unions both directions and tags every row `matchedBy: ico|name`.
+   Site mode is capped (3 pages/leg, 4 name variants); the mirror is the exact path.
 
 3. **Before stating any number, check the envelope:**
    - `hasMore: true` → you have one page, not the answer — use `crz collect` (whole result set → JSONL)
@@ -50,7 +51,7 @@ Non-zero exits carry `{ok:false, error:{code, message, hint}}` — read `hint` f
 ```sh
 git clone … ~/.opencli/clis/crz    # or edit installed copy; hot-reloads by mtime
 ln -sfn "$(npm root -g)/@jackwener" node_modules/@jackwener    # tests only (ESM resolution)
-npm test && npm run coverage        # 82 offline tests; utils 100 % lines
+npm test && npm run coverage        # 88 offline tests; utils 100 % lines
 npm run fixtures                    # regenerate synthetic fixture universe (no network)
 CRZ_LIVE=1 npm test                 # optional live drift tier
 ```

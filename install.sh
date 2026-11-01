@@ -85,7 +85,7 @@ verify() {
     local list n
     list="$(opencli list crz 2>/dev/null)" || fail "opencli list crz failed"
     n="$(printf '%s' "$list" | grep -o '"command":' | wc -l | tr -d ' ')"
-    [ "$n" -ge 12 ] || fail "expected ≥12 crz commands, found $n"
+    [ "$n" -ge 16 ] || fail "expected ≥16 crz commands, found $n"
     say "commands registered: $n ✓"
     # live shape check — asserts structure only; contract content is never printed
     if opencli crz feed --limit 1 -f json 2>/dev/null | grep -q '"ok":true'; then

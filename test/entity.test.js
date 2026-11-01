@@ -12,6 +12,7 @@ import path from 'node:path';
 import { installFetch } from './helpers/fetch-stub.js';
 import { rowsHtml } from './helpers/synth.js';
 import { makeStoredZip, DAY1_XML, DAY2_XML, DB_TEST_OPTS } from './helpers/mirror-fixtures.js';
+import { openMirror } from '../mirror.js';
 import { commandDef } from './helpers/commands.js';
 
 const SYNC_STUB = [
@@ -113,4 +114,29 @@ test('entity: invalid IČO rejected pre-network', async () => {
         await assert.rejects(def.func({ ico: '12' }), /Invalid IČO/);
         assert.equal(stub.calls.length, 0);
     } finally { stub.restore(); }
+});
+
+test('entity: an empty mirror falls back to site legs instead of answering zero', DB_TEST_OPTS, async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'crz-empty-'));
+    const db = path.join(dir, 'empty.sqlite');
+    const empty = await openMirror(db);
+    empty.close();
+    const page = rowsHtml([{ id: 5000001, sup: 'F & G STAVBY s.r.o.', auth: 'Obec VZOR' }]);
+    const stub = installFetch([
+        { match: /\/zmluvy\/$/, body: '<html><form id="frm_filter_3" action="/2171273-sk/centralny-register-zmluv/" method="get"></form></html>' },
+        { match: /art_ico1=45678901/, body: page },
+        { match: /art_ico=45678901/, body: page },
+        { match: /art_zs[12]=/, body: page },
+    ]);
+    try {
+        const def = await commandDef('entity');
+        const res = await def.func({ ico: '45678901', db, 'max-pages': 1, 'delay-ms': 0 });
+        assert.equal(res.source, 'site');
+        assert.equal(res.mirrorEmpty, true);
+        assert.equal(res.contracts, 1);
+        assert.ok(res.hint.includes('sync'));
+    } finally {
+        stub.restore();
+        await fs.rm(dir, { recursive: true, force: true });
+    }
 });

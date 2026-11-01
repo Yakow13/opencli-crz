@@ -4,6 +4,7 @@
  * missing day is a recorded gap, never a crash; 5xx aborts cleanly so the
  * watermark never claims more than what was durably ingested.
  */
+import fs from 'node:fs';
 import { cli, Strategy } from '@jackwener/opencli/registry';
 import { ArgumentError } from '@jackwener/opencli/errors';
 import { BASE, fetchBytes, sleep } from './utils.js';
@@ -11,6 +12,22 @@ import { readZip, parseDiffXml } from './diff.js';
 import { openMirror, upsertEvent, getMeta, setMeta, DEFAULT_DB } from './mirror.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const FIRST_SYNC_HINT = 'Bootstrap choice: `crz changes` a wide range costs one small download/day; typical starting points: 5 years back for a beat, or a specific scandal window.';
+
+function assertRange(since, until, maxDays) {
+    for (const [label, v] of [['since', since], ['until', until]]) {
+        if (!DATE_RE.test(v) || Number.isNaN(Date.parse(`${v}T00:00:00Z`))) {
+            throw new ArgumentError(`Invalid ${label} "${v}"`, 'Use yyyy-mm-dd.');
+        }
+    }
+    if (since > until) throw new ArgumentError(`since ${since} is after until ${until}`);
+    const days = [...dateRange(since, until)];
+    if (days.length > maxDays) {
+        throw new ArgumentError(`Range covers ${days.length} days; max-days is ${maxDays}`,
+            'Run in chunks — or raise --max-days deliberately.');
+    }
+    return days;
+}
 
 function addDays(iso, n) {
     const d = new Date(`${iso}T00:00:00Z`);
@@ -39,34 +56,35 @@ cli({
         { name: 'until', type: 'string', help: 'Last day inclusive (default: yesterday)' },
         { name: 'db', type: 'string', help: `Mirror path (default ${DEFAULT_DB})` },
         { name: 'delay-ms', type: 'int', default: 500, help: 'Politeness delay between daily archives' },
-        { name: 'max-days', type: 'int', default: 400, help: 'Safety cap per run (1-2000)' },
+        { name: 'max-days', type: 'int', default: 400, help: 'Safety cap per run (1-2500)' },
     ],
     columns: ['days', 'events', 'contracts', 'emptyDays', 'gaps', 'watermark'],
     func: async (args) => {
         const dbPath = args.db ? String(args.db) : DEFAULT_DB;
+        const yesterday = addDays(new Date().toISOString().slice(0, 10), -1);
+        const until = args.until ? String(args.until) : yesterday;
+        let since = args.since ? String(args.since) : null;
+        const maxDays = Math.min(Math.max(Number(args['max-days'] ?? 400), 1), 2500);
+        const delayMs = Number(args['delay-ms'] ?? 500);
+
+        // Validate before opening: an argument error must not leave an empty mirror
+        // behind — `entity` treats any existing DB as the source of truth.
+        let days = null;
+        if (since) {
+            days = assertRange(since, until, maxDays);
+        } else if (!fs.existsSync(dbPath)) {
+            throw new ArgumentError('First sync needs --since <yyyy-mm-dd>', FIRST_SYNC_HINT);
+        }
+
         const db = await openMirror(dbPath);
         try {
-            const yesterday = addDays(new Date().toISOString().slice(0, 10), -1);
-            const until = args.until ? String(args.until) : yesterday;
-            let since = args.since ? String(args.since) : null;
             if (!since) {
                 const wm = getMeta(db, 'watermark');
-                if (!wm) throw new ArgumentError('First sync needs --since <yyyy-mm-dd>',
-                    'Bootstrap choice: `crz changes` a wide range costs one small download/day; typical starting points: 5 years back for a beat, or a specific scandal window.');
+                if (!wm) throw new ArgumentError('First sync needs --since <yyyy-mm-dd>', FIRST_SYNC_HINT);
                 since = addDays(wm, 1);
+                days = assertRange(since, until, maxDays);
             }
-            for (const [label, v] of [['since', since], ['until', until]]) {
-                if (!DATE_RE.test(v) || Number.isNaN(Date.parse(`${v}T00:00:00Z`))) {
-                    throw new ArgumentError(`Invalid ${label} "${v}"`, 'Use yyyy-mm-dd.');
-                }
-            }
-            if (since > until) throw new ArgumentError(`since ${since} is after until ${until}`);
 
-            const maxDays = Math.min(Math.max(Number(args['max-days'] ?? 400), 1), 2000);
-            const days = [...dateRange(since, until)];
-            if (days.length > maxDays) throw new ArgumentError(`Range covers ${days.length} days; max-days is ${maxDays}`, 'Run in chunks — or raise --max-days deliberately.');
-
-            const delayMs = Number(args['delay-ms'] ?? 500);
             let events = 0, emptyDays = 0, gaps = 0;
             const gapDays = [];
             const seenContractIds = new Set();

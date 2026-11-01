@@ -30,18 +30,22 @@ cli({
                 'The mirror is rebuilt any time with `crz sync` — write nothing, mutate nothing, stay auditable.');
         }
         const dbPath = args.db ? String(args.db) : DEFAULT_DB;
-        const db = await openMirror(dbPath, { mustExist: true });
+        const db = await openMirror(dbPath, { mustExist: true, readOnly: true });
         try {
-            let rows;
-            try {
-                // row objects from node:sqlite have null prototype; normalize for consumers
-                rows = db.prepare(query).all().map((r) => ({ ...r }));
-            } catch (e) {
-                throw new CommandExecutionError(`Query failed: ${e.message}`, 'Check table/column names: contracts, events, attachments, aliases, meta');
-            }
             const limit = Math.max(1, Number(args.limit ?? 500));
-            const truncated = rows.length > limit;
-            return { rows: rows.slice(0, limit), count: rows.length, truncated, db: dbPath };
+            const rows = [];
+            let truncated = false;
+            try {
+                // iterate so a huge SELECT never materialises the whole mirror;
+                // the connection is read-only, so WITH-prefixed writes cannot slip past the regex
+                for (const r of db.prepare(query).iterate()) {
+                    if (rows.length >= limit) { truncated = true; break; }
+                    rows.push({ ...r });
+                }
+            } catch (e) {
+                throw new CommandExecutionError(`Query failed: ${e.message}`, 'crz sql is read-only: check table/column names (contracts, events, attachments, aliases, meta) and remove writes.');
+            }
+            return { rows, count: rows.length, truncated, db: dbPath };
         } finally {
             db.close();
         }

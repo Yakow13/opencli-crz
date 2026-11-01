@@ -81,7 +81,7 @@ opencli crz evidence 99999901 --dir cases             # detail.json + PDF + sha2
 
 ```sh
 ln -sfn "$(npm root -g)/@jackwener" node_modules/@jackwener  # dev only: ESM resolution
-npm test          # 82 offline tests over 20 synthetic fixtures (test/fixtures)
+npm test          # 88 offline tests over 20 synthetic fixtures (test/fixtures)
 npm run fixtures  # regenerate the fixture universe (deterministic, offline)
 CRZ_LIVE=1 npm test   # + live drift detector
 ```
