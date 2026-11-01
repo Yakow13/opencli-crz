@@ -6,7 +6,9 @@ on:
   schedule:
     - cron: '17 4 * * *'   # daily: installer e2e + live drift while maintainer sleeps
 
-concurrency: { group: verify-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   tests:
@@ -19,7 +21,7 @@ jobs:
         with: { node-version: '${{ matrix.node }}' }
       - run: npm install -g @jackwener/opencli --loglevel error
       - name: ESM resolution for test harness (dev-only symlink)
-        run: | mkdir -p node_modules && ln -sfn "$(npm root -g)/@jackwener" node_modules/@jackwener
+        run: mkdir -p node_modules && ln -sfn "$(npm root -g)/@jackwener" node_modules/@jackwener
       - run: node --test test/*.test.js    # db-mode tests self-skip on node 20 — that IS the D0 test
 
   installer-e2e:
