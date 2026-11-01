@@ -19,6 +19,7 @@ Drop this folder into `~/.opencli/clis/crz/` — OpenCLI discovers it automatica
 | `crz attachment <id>` | Download the contract PDF |
 | `crz evidence <id>` | Freeze contract + PDFs + SHA-256 manifest (publication-grade snapshot) |
 | `crz profile <IČO>` | Entity profile: total state spend/earnings, per year, top counterparties |
+| `crz entity <IČO>` | **Every** contract where an IČO is a party — mirror-exact alias-bridged union, or live-leg union with `matchedBy` provenance (fixes the §11 recall hole) |
 | `crz collect <query>` | Harvest an entire result set to JSONL (paginated, deduped, rate-limited) |
 | `crz feed` | RSS with precise publication timestamps |
 | `crz export [date]` | Official daily differential ZIP (bulk XML, CC BY 4.0) |
@@ -48,7 +49,7 @@ opencli crz evidence 99999901 --dir cases             # detail.json + PDF + sha2
 
 ```sh
 ln -sfn "$(npm root -g)/@jackwener" node_modules/@jackwener  # dev only: ESM resolution
-npm test          # 78 offline tests over 20 synthetic fixtures (test/fixtures)
+npm test          # 82 offline tests over 20 synthetic fixtures (test/fixtures)
 npm run fixtures  # regenerate the fixture universe (deterministic, offline)
 CRZ_LIVE=1 npm test   # + live drift detector
 ```
