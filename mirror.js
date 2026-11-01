@@ -10,10 +10,10 @@
  *  - aliases register (normalized name, ico, address) per contract — the seed
  *    for the entity resolution layer that ORSR/PDF will feed (M3/M4).
  */
-import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { CommandExecutionError } from '@jackwener/opencli/errors';
 import { normKey } from './utils.js';
 
 export const DEFAULT_DB = path.join(os.homedir(), '.opencli', 'data', 'crz', 'mirror.sqlite');
@@ -39,7 +39,16 @@ CREATE TABLE IF NOT EXISTS aliases(
   PRIMARY KEY(name_norm, ico, crzid, role));
 `;
 
-export function openMirror(dbPath = DEFAULT_DB, { mustExist = false } = {}) {
+export async function openMirror(dbPath = DEFAULT_DB, { mustExist = false } = {}) {
+    // node:sqlite is Node ≥22.5; load lazily so the rest of the suite (and entity
+    // site mode) keeps working on older Node — OpenCLI itself supports ≥20.18.
+    let DatabaseSync;
+    try {
+        ({ DatabaseSync } = await import('node:sqlite'));
+    } catch {
+        throw new CommandExecutionError('The CRZ mirror needs Node.js 22.5+ (built-in node:sqlite).',
+            'Upgrade Node (install.sh/install.ps1 do this), or keep using the non-mirror commands — search, detail, entity site mode, collect, evidence all work on Node 20.');
+    }
     if (mustExist && !fs.existsSync(dbPath)) {
         throw Object.assign(new Error(`Mirror database does not exist yet: ${dbPath}`),
             { hint: 'Run `opencli crz sync --since <yyyy-mm-dd>` first.' });

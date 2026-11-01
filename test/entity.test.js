@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { installFetch } from './helpers/fetch-stub.js';
 import { rowsHtml } from './helpers/synth.js';
-import { makeStoredZip, DAY1_XML, DAY2_XML } from './helpers/mirror-fixtures.js';
+import { makeStoredZip, DAY1_XML, DAY2_XML, DB_TEST_OPTS } from './helpers/mirror-fixtures.js';
 import { commandDef } from './helpers/commands.js';
 
 const SYNC_STUB = [
@@ -32,7 +32,7 @@ async function seededDb() {
 
 // DAY1 fixture universe: 'Firm s.r.o.' IČO 11111111 sells twice — contract
 // 9000001 (priced 2500 after day2 update) + 9000002 with BLANK ico (1500).
-test('entity: db mode unions IČO legs with alias-bridged blank-ico rows', async () => {
+test('entity: db mode unions IČO legs with alias-bridged blank-ico rows', DB_TEST_OPTS, async () => {
     const { dir, db } = await seededDb();
     try {
         const def = await commandDef('entity');
@@ -49,7 +49,7 @@ test('entity: db mode unions IČO legs with alias-bridged blank-ico rows', async
     } finally { await fs.rm(dir, { recursive: true, force: true }); }
 });
 
-test('entity: db mode authority side + --year filter + typed empty', async () => {
+test('entity: db mode authority side + --year filter + typed empty', DB_TEST_OPTS, async () => {
     const { dir, db } = await seededDb();
     try {
         const def = await commandDef('entity');

@@ -1,0 +1,58 @@
+name: verify
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'   # daily: installer e2e + live drift while maintainer sleeps
+
+concurrency: { group: verify-${{ github.ref }}, cancel-in-progress: true }
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy: { matrix: { node: ['20.x', '22.x'] } }
+    name: offline tests (node ${{ matrix.node }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ matrix.node }}' }
+      - run: npm install -g @jackwener/opencli --loglevel error
+      - name: ESM resolution for test harness (dev-only symlink)
+        run: | mkdir -p node_modules && ln -sfn "$(npm root -g)/@jackwener" node_modules/@jackwener
+      - run: node --test test/*.test.js    # db-mode tests self-skip on node 20 — that IS the D0 test
+
+  installer-e2e:
+    strategy: { fail-fast: false, matrix: { os: [ubuntu-latest, macos-latest, windows-latest] } }
+    runs-on: ${{ matrix.os }}
+    name: install.sh/ps1 on ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.x' }
+      - name: install (mac/linux)
+        if: runner.os != 'Windows'
+        run: bash install.sh
+      - name: install (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./install.ps1
+      - name: registered commands
+        run: opencli list crz
+      - name: live smoke (warning-only — CRZ has planned weekend maintenance)
+        continue-on-error: true
+        run: opencli crz feed --limit 1 -f json
+
+  live-drift:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.x' }
+      - run: npm install -g @jackwener/opencli --loglevel error
+      - run: mkdir -p node_modules && ln -sfn "$(npm root -g)/@jackwener" node_modules/@jackwener
+      - name: live tier (shape assertions only — never stores register content)
+        continue-on-error: true
+        env: { CRZ_LIVE: '1' }
+        run: node --test test/live.test.js

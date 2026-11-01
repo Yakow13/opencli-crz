@@ -44,7 +44,7 @@ cli({
     columns: ['days', 'events', 'contracts', 'emptyDays', 'gaps', 'watermark'],
     func: async (args) => {
         const dbPath = args.db ? String(args.db) : DEFAULT_DB;
-        const db = openMirror(dbPath);
+        const db = await openMirror(dbPath);
         try {
             const yesterday = addDays(new Date().toISOString().slice(0, 10), -1);
             const until = args.until ? String(args.until) : yesterday;

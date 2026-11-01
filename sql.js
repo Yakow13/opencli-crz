@@ -30,7 +30,7 @@ cli({
                 'The mirror is rebuilt any time with `crz sync` — write nothing, mutate nothing, stay auditable.');
         }
         const dbPath = args.db ? String(args.db) : DEFAULT_DB;
-        const db = openMirror(dbPath, { mustExist: true });
+        const db = await openMirror(dbPath, { mustExist: true });
         try {
             let rows;
             try {

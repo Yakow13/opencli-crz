@@ -137,7 +137,7 @@ cli({
         const useDb = fs.existsSync(dbPath);
         let rows, extra = {};
         if (useDb) {
-            const db = openMirror(dbPath);
+            const db = await openMirror(dbPath);
             try { rows = dbEntity(db, ico, year); } finally { db.close(); }
         } else {
             const site = await siteEntity(args, ico, year);

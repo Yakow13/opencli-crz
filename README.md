@@ -4,9 +4,41 @@
 
 No browser, no API key: public HTML + the official nightly differential files, normalized.
 
-## Install
+## Setup
 
-Drop this folder into `~/.opencli/clis/crz/` — OpenCLI discovers it automatically (`opencli list crz`).
+Everything (Node 22+ → OpenCLI → this adapter set) installs with **one pasted line**. No admin rights, no sudo, no binaries to unblock.
+
+**macOS / Linux / WSL**
+```sh
+curl -fsSL https://raw.githubusercontent.com/Yakow13/opencli-crz/main/install.sh | bash
+```
+
+**Windows 10/11 (PowerShell)**
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/Yakow13/opencli-crz/main/install.ps1 | iex"
+```
+
+The installer picks Node up via existing nvm → Homebrew → bootstraps nvm user-space itself, installs `@jackwener/opencli` from npm, drops the latest release into `~/.opencli/clis/crz`, then verifies by counting commands and running a live smoke. Re-running it updates in place.
+
+**Manual / agents** (three lines):
+```sh
+npm install -g @jackwener/opencli           # Node ≥ 20.18 (≥ 22.5 for sync/sql/entity-db)
+mkdir -p ~/.opencli/clis/crz && curl -fsSL https://codeload.github.com/Yakow13/opencli-crz/tar.gz/refs/heads/main \
+  | tar xz --strip-components=1 -C ~/.opencli/clis/crz
+opencli list crz                             # lists the commands → installed ✓
+```
+
+Agent operators: read [`AGENTS.md`](AGENTS.md) — install/verify contract, mirror bootstrap, output-envelope rules, privacy doctrine.
+
+**Troubleshooting**
+
+| Symptom | Fix |
+|---|---|
+| `opencli: command not found` after install | new terminal (PATH), or check `npm prefix -g` is on PATH |
+| npm EACCES on global install | installer falls back to user-space nvm — rerun it in a fresh shell |
+| `crz sync/sql/entity-db` complain about Node | need Node ≥ 22.5; everything else runs on ≥ 20.18 |
+| HTTP 500 / nothing loads on weekends | CRZ does planned maintenance — retry later; installer smoke warns but still succeeds |
+| want to uninstall | `rm -rf ~/.opencli/clis/crz` (mirror/cache stay in `~/.opencli/data` + `~/.opencli/cache` — delete if you want zero traces) |
 
 ## Commands
 

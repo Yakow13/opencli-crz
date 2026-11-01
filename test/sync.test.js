@@ -8,7 +8,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { installFetch } from './helpers/fetch-stub.js';
-import { makeStoredZip, DAY1_XML, DAY2_XML } from './helpers/mirror-fixtures.js';
+import { makeStoredZip, DAY1_XML, DAY2_XML, DB_TEST_OPTS } from './helpers/mirror-fixtures.js';
 import { commandDef } from './helpers/commands.js';
 
 async function withDb(fn) {
@@ -25,7 +25,7 @@ function twoDayStub() {
     ]);
 }
 
-test('sync: ingests days into mirror tables with watermark; idempotent on re-run', async () => {
+test('sync: ingests days into mirror tables with watermark; idempotent on re-run', DB_TEST_OPTS, async () => {
     await withDb(async (db) => {
         const stub = twoDayStub();
         try {
@@ -62,7 +62,7 @@ test('sync: ingests days into mirror tables with watermark; idempotent on re-run
     });
 });
 
-test('sync: stale out-of-order chan never overwrites newer state', async () => {
+test('sync: stale out-of-order chan never overwrites newer state', DB_TEST_OPTS, async () => {
     await withDb(async (db) => {
         const stub = twoDayStub();
         try {
@@ -77,7 +77,7 @@ test('sync: stale out-of-order chan never overwrites newer state', async () => {
     });
 });
 
-test('sync: missing day (404) is a recorded gap, not a crash; --resume continues from watermark', async () => {
+test('sync: missing day (404) is a recorded gap, not a crash; --resume continues from watermark', DB_TEST_OPTS, async () => {
     await withDb(async (db) => {
         const stub = installFetch([
             { match: /\/export\/2026-01-02\.zip$/, body: makeStoredZip('2026-01-02.xml', DAY1_XML) },
@@ -94,7 +94,7 @@ test('sync: missing day (404) is a recorded gap, not a crash; --resume continues
     });
 });
 
-test('sql: read-only guard, row limit, and unknown db gets a helpful error', async () => {
+test('sql: read-only guard, row limit, and unknown db gets a helpful error', DB_TEST_OPTS, async () => {
     await withDb(async (db) => {
         const stub = twoDayStub();
         try {
@@ -114,7 +114,7 @@ test('sql: read-only guard, row limit, and unknown db gets a helpful error', asy
     });
 });
 
-test('sync: default range with no watermark starts from --since-required hint (typed error)', async () => {
+test('sync: default range with no watermark starts from --since-required hint (typed error)', DB_TEST_OPTS, async () => {
     await withDb(async (db) => {
         const stub = installFetch([]);
         try {
