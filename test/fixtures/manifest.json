@@ -1,0 +1,104 @@
+{
+  "form-zmluvy.html": {
+    "synthetic": true,
+    "bytes": 1187,
+    "purpose": "frm_filter_3 form + action path + rezort select option ids"
+  },
+  "list-recent-order.html": {
+    "synthetic": true,
+    "bytes": 7482,
+    "purpose": "recent list rows with ?order=22&page=1 applied"
+  },
+  "list-amendments.html": {
+    "synthetic": true,
+    "bytes": 7615,
+    "purpose": "20 supplement rows incl. ONE legacy bare /<id>/ link + Doplnená badge"
+  },
+  "list-terminated.html": {
+    "synthetic": true,
+    "bytes": 7076,
+    "purpose": "terminated list rows"
+  },
+  "search-kupna.html": {
+    "synthetic": true,
+    "bytes": 7482,
+    "purpose": "search page 0 with pager window (page=1..10 pattern)"
+  },
+  "search-kupna-page1.html": {
+    "synthetic": true,
+    "bytes": 7485,
+    "purpose": "same query page 1 — distinct ids for harvest chaining"
+  },
+  "fulltext-koncert.html": {
+    "synthetic": true,
+    "bytes": 7482,
+    "purpose": "fulltext GET result page shape"
+  },
+  "party-space-amp.html": {
+    "synthetic": true,
+    "bytes": 142,
+    "purpose": "0-row page from spaced-ampersand party query (§11 F5 false negative)"
+  },
+  "party-glued.html": {
+    "synthetic": true,
+    "bytes": 7482,
+    "purpose": "20-row page from glued-ampersand variant (§11 F5 retry target)"
+  },
+  "detail-basic.html": {
+    "synthetic": true,
+    "bytes": 2457,
+    "purpose": "single-IČO detail; span/span + strong/strong amount variants"
+  },
+  "detail-full.html": {
+    "synthetic": true,
+    "bytes": 2760,
+    "purpose": "note field, two IČO labels (order-sensitive), kB-size attachment"
+  },
+  "detail-ico-in-name.html": {
+    "synthetic": true,
+    "bytes": 1647,
+    "purpose": "IČO ONLY inside quoted supplier name; one IČO label = authority (§11 F3)"
+  },
+  "detail-ico-blank.html": {
+    "synthetic": true,
+    "bytes": 1473,
+    "purpose": "supplier with NO IČO anywhere (§11 F1 forward direction)"
+  },
+  "detail-name-change.html": {
+    "synthetic": true,
+    "bytes": 1587,
+    "purpose": "same IČO under a different legal name (§11 F1 reverse direction)"
+  },
+  "detail-missing.html": {
+    "synthetic": true,
+    "bytes": 61,
+    "purpose": "unknown id → 404 styled page"
+  },
+  "feed-rss.xml": {
+    "synthetic": true,
+    "bytes": 2079,
+    "purpose": "RSS item shape incl. price-in-title and comma-containing parties"
+  },
+  "diff-sample.xml": {
+    "synthetic": true,
+    "bytes": 1983,
+    "purpose": "two full nightly <zmluva> records (all tags incl. prilohy, 0000 sentinels)"
+  },
+  "diff-ico-blank.xml": {
+    "synthetic": true,
+    "bytes": 952,
+    "purpose": "nightly record with empty <ico></ico> + filled <ico1> (§11 F2)"
+  },
+  "diff-sample.zip": {
+    "synthetic": true,
+    "bytes": 929,
+    "purpose": "DEFLATE (method 8) archive — real nightly compression"
+  },
+  "export-empty.zip": {
+    "synthetic": true,
+    "bytes": 175,
+    "purpose": "STORED (method 0) archive with empty <zmluvy/> — valid zero-event day"
+  },
+  "_builtAt": "2026-11-01",
+  "_note": "100% synthetic fictional universe; regenerate with `npm run fixtures`. Structure mirrors live reality; live tier (CRZ_LIVE=1) verifies against the site."
+}

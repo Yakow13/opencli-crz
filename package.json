@@ -1,0 +1,11 @@
+{
+  "name": "opencli-adapter-crz",
+  "private": true,
+  "type": "module",
+  "description": "CRZ (Centrálny register zmlúv) adapter + offline test suite. Run tests: node --test test/*.test.js",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "coverage": "node --test --experimental-test-coverage test/*.test.js",
+    "fixtures": "node test/helpers/build-fixtures.js"
+  }
+}
